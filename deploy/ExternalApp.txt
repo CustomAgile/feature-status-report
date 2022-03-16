@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Feature Status Report</title>
+    <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
+    <!--  Build Date: Mon May 18 2015 13:29:26 GMT-0700 (PDT) -->
+    
+    <script type="text/javascript">
+        var APP_BUILD_DATE = "Mon May 18 2015 13:29:26 GMT-0700 (PDT)";
+        var CHECKSUM = [%= checksum %];
+    </script>
+    
+    <script type="text/javascript" src="https://rally1.rallydev.com//apps/2.0/sdk-debug.js?apiKey=_PUT_APIKEY_HERE_"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function() {
+             
+/* Blob.js
+ * A Blob implementation.
+ * 2014-05-31
+ * 
+ * By Eli Grey, http://eligrey.com
+ * By Devin Samarin, https://github.com/eboyjr
+ * License: X11/MIT
+ *   See https://github.com/eligrey/Blob.js/blob/master/LICENSE.md
+ */
+
+/*global self, unescape */
+/*jslint bitwise: true, regexp: true, confusion: true, es5: true, vars: true, white: true,
+  plusplus: true */
+
+/*! @source http://purl.eligrey.com/github/Blob.js/blob/master/Blob.js */
+
+(function (view) {
+    "use strict";
+
+    view.URL = view.URL || view.webkitURL;
+
+    if (view.Blob && view.URL) {
+        try {
+            new Blob;
+            return;
+        } catch (e) {}
+    }
+
+    // Internally we use a BlobBuilder implementation to base Blob off of
+    // in order to support older browsers that only have BlobBuilder
+    var BlobBuilder = view.BlobBuilder || view.WebKitBlobBuilder || view.MozBlobBuilder || (function(view) {
+        var
+              get_class = function(object) {
+                return Object.prototype.toString.call(object).match(/^\[object\s(.*)\]$/)[1];
+            }
+            , FakeBlobBuilder = function BlobBuilder() {
+                this.data = [];
+            }
+            , FakeBlob = function Blob(data, type, encoding) {
+                this.data = data;
+                this.size = data.length;
+                this.type = type;
+                this.encoding = encoding;
+            }
+            , FBB_proto = FakeBlobBuilder.prototype
+            , FB_proto = FakeBlob.prototype
+            , FileReaderSync = view.FileReaderSync
+            , FileException = function(type) {
+                this.code = this[this.name = type];
+            }
+            , file_ex_codes = (
+                  "NOT_FOUND_ERR SECURITY_ERR ABORT_ERR NOT_READABLE_ERR ENCODING_ERR "
+                + "NO_MODIFICATION_ALLOWED_ERR INVALID_STATE_ERR SYNTAX_ERR"
+            ).split(" ")
+            , file_ex_code = file_ex_codes.length
+            , real_URL = view.URL || view.webkitURL || view
+            , real_create_object_URL = real_URL.createObjectURL
+            , real_revoke_object_URL = real_URL.revokeObjectURL
+            , URL = real_URL
+            , btoa = view.btoa
+            , atob = view.atob
+            
+            , ArrayBuffer = view.ArrayBuffer
+            , Uint8Array = view.Uint8Array
+        ;
+        FakeBlob.fake = FB_proto.fake = true;
+        while (file_ex_code--) {
+            FileException.prototype[file_ex_codes[file_ex_code]] = file_ex_code + 1;
+        }
+        if (!real_URL.createObjectURL) {
+            URL = view.URL = {};
+        }
+        URL.createObjectURL = function(blob) {
+            var
+                  type = blob.type
+                , data_URI_header
+            ;
+            if (type === null) {
+                type = "application/octet-stream";
+            }
+            if (blob instanceof FakeBlob) {
+                data_URI_header = "data:" + type;
+                if (blob.encoding === "base64") {
+                    return data_URI_header + ";base64," + blob.data;
+                } else if (blob.encoding === "URI") {
+                    return data_URI_header + "," + decodeURIComponent(blob.data);
+                } if (btoa) {
+                    return data_URI_header + ";base64," + btoa(blob.data);
+                } else {
+                    return data_URI_header + "," + encodeURIComponent(blob.data);
+                }
+            } else if (real_create_object_URL) {
+                return real_create_object_URL.call(real_URL, blob);
+            }
+        };
+        URL.revokeObjectURL = function(object_URL) {
+            if (object_URL.substring(0, 5) !== "data:" && real_revoke_object_URL) {
+                real_revoke_object_URL.call(real_URL, object_URL);
+            }
+        };
+        FBB_proto.append = function(data/*, endings*/) {
+            var bb = this.data;
+            // decode data to a binary string
+            if (Uint8Array && (data instanceof ArrayBuffer || data instanceof Uint8Array)) {
+                var
+                      str = ""
+                    , buf = new Uint8Array(data)
+                    , i = 0
+                    , buf_len = buf.length
+                ;
+                for (; i < buf_len; i++) {
+                    str += String.fromCharCode(buf[i]);
+                }
+                bb.push(str);
+            } else if (get_class(data) === "Blob" || get_class(data) === "File") {
+                if (FileReaderSync) {
+                    var fr = new FileReaderSync;
+                    bb.push(fr.readAsBinaryString(data));
+                } else {
+                    // async FileReader won't work as BlobBuilder is sync
+                    throw new FileException("NOT_READABLE_ERR");
+                }
+            } else if (data instanceof FakeBlob) {
+                if (data.encoding === "base64" && atob) {
+                    bb.push(atob(data.data));
+                } else if (data.encoding === "URI") {
+                    bb.push(decodeURIComponent(data.data));
+                } else if (data.encoding === "raw") {
+                    bb.push(data.data);
+                }
+            } else {
+                if (typeof data !== "string") {
+                    data += ""; // convert unsupported types to strings
+                }
+                // decode UTF-16 to binary string
+                bb.push(unescape(encodeURIComponent(data)));
+            }
+        };
+        FBB_proto.getBlob = function(type) {
+            if (!arguments.length) {
+                type = null;
+            }
+            return new FakeBlob(this.data.join(""), type, "raw");
+        };
+        FBB_proto.toString = function() {
+            return "[object BlobBuilder]";
+        };
+        FB_proto.slice = function(start, end, type) {
+            var args = arguments.length;
+            if (args < 3) {
+                type = null;
+            }
+            return new FakeBlob(
+                  this.data.slice(start, args > 1 ? end : this.data.length)
+                , type
+                , this.encoding
+            );
+        };
+        FB_proto.toString = function() {
+            return "[object Blob]";
+        };
+        FB_proto.close = function() {
+            this.size = 0;
+            delete this.data;
+        };
+        return FakeBlobBuilder;
+    }(view));
+
+    view.Blob = function Blob(blobParts, options) {
+        var type = options ? (options.type || "") : "";
+        var builder = new BlobBuilder();
+        if (blobParts) {
+            for (var i = 0, len = blobParts.length; i < len; i++) {
+                builder.append(blobParts[i]);
+            }
+        }
+        return builder.getBlob(type);
+    };
+}(typeof self !== "undefined" && self || typeof window !== "undefined" && window || this.content || this));
+/* FileSaver.js
+ *  A saveAs() FileSaver implementation.
+ *  2014-05-27
+ *
+ *  By Eli Grey, http://eligrey.com
+ *  License: X11/MIT
+ *    See https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md
+ */
+
+/*global self */
+/*jslint bitwise: true, indent: 4, laxbreak: true, laxcomma: true, smarttabs: true, plusplus: true */
+
+/*! @source http://purl.eligrey.com/github/FileSaver.js/blob/master/FileSaver.js */
+
+var saveAs = saveAs
+  // IE 10+ (native saveAs)
+  || (typeof navigator !== "undefined" &&
+      navigator.msSaveOrOpenBlob && navigator.msSaveOrOpenBlob.bind(navigator))
+  // Everyone else
+  || (function(view) {
+    "use strict";
+    // IE <10 is explicitly unsupported
+    if (typeof navigator !== "undefined" &&
+        /MSIE [1-9]\./.test(navigator.userAgent)) {
+        return;
+    }
+    var
+          doc = view.document
+          // only get URL when necessary in case Blob.js hasn't overridden it yet
+        , get_URL = function() {
+            return view.URL || view.webkitURL || view;
+        }
+        , save_link = doc.createElementNS("http://www.w3.org/1999/xhtml", "a")
+        , can_use_save_link = !view.externalHost && "download" in save_link
+        , click = function(node) {
+            var event = doc.createEvent("MouseEvents");
+            event.initMouseEvent(
+                "click", true, false, view, 0, 0, 0, 0, 0
+                , false, false, false, false, 0, null
+            );
+            node.dispatchEvent(event);
+        }
+        , webkit_req_fs = view.webkitRequestFileSystem
+        , req_fs = view.requestFileSystem || webkit_req_fs || view.mozRequestFileSystem
+        , throw_outside = function(ex) {
+            (view.setImmediate || view.setTimeout)(function() {
+                throw ex;
+            }, 0);
+        }
+        , force_saveable_type = "application/octet-stream"
+        , fs_min_size = 0
+        , deletion_queue = []
+        , process_deletion_queue = function() {
+            var i = deletion_queue.length;
+            while (i--) {
+                var file = deletion_queue[i];
+                if (typeof file === "string") { // file is an object URL
+                    get_URL().revokeObjectURL(file);
+                } else { // file is a File
+                    file.remove();
+                }
+            }
+            deletion_queue.length = 0; // clear queue
+        }
+        , dispatch = function(filesaver, event_types, event) {
+            event_types = [].concat(event_types);
+            var i = event_types.length;
+            while (i--) {
+                var listener = filesaver["on" + event_types[i]];
+                if (typeof listener === "function") {
+                    try {
+                        listener.call(filesaver, event || filesaver);
+                    } catch (ex) {
+                        throw_outside(ex);
+                    }
+                }
+            }
+        }
+        , FileSaver = function(blob, name) {
+            // First try a.download, then web filesystem, then object URLs
+            var
+                  filesaver = this
+                , type = blob.type
+                , blob_changed = false
+                , object_url
+                , target_view
+                , get_object_url = function() {
+                    var object_url = get_URL().createObjectURL(blob);
+                    deletion_queue.push(object_url);
+                    return object_url;
+                }
+                , dispatch_all = function() {
+                    dispatch(filesaver, "writestart progress write writeend".split(" "));
+                }
+                // on any filesys errors revert to saving with object URLs
+                , fs_error = function() {
+                    // don't create more object URLs than needed
+                    if (blob_changed || !object_url) {
+                        object_url = get_object_url(blob);
+                    }
+                    if (target_view) {
+                        target_view.location.href = object_url;
+                    } else {
+                        window.open(object_url, "_blank");
+                    }
+                    filesaver.readyState = filesaver.DONE;
+                    dispatch_all();
+                }
+                , abortable = function(func) {
+                    return function() {
+                        if (filesaver.readyState !== filesaver.DONE) {
+                            return func.apply(this, arguments);
+                        }
+                    };
+                }
+                , create_if_not_found = {create: true, exclusive: false}
+                , slice
+            ;
+            filesaver.readyState = filesaver.INIT;
+            if (!name) {
+                name = "download";
+            }
+            if (can_use_save_link) {
+                object_url = get_object_url(blob);
+                save_link.href = object_url;
+                save_link.download = name;
+                click(save_link);
+                filesaver.readyState = filesaver.DONE;
+                dispatch_all();
+                return;
+            }
+            // Object and web filesystem URLs have a problem saving in Google Chrome when
+            // viewed in a tab, so I force save with application/octet-stream
+            // http://code.google.com/p/chromium/issues/detail?id=91158
+            if (view.chrome && type && type !== force_saveable_type) {
+                slice = blob.slice || blob.webkitSlice;
+                blob = slice.call(blob, 0, blob.size, force_saveable_type);
+                blob_changed = true;
+            }
+            // Since I can't be sure that the guessed media type will trigger a download
+            // in WebKit, I append .download to the filename.
+            // https://bugs.webkit.org/show_bug.cgi?id=65440
+            if (webkit_req_fs && name !== "download") {
+                name += ".download";
+            }
+            if (type === force_saveable_type || webkit_req_fs) {
+                target_view = view;
+            }
+            if (!req_fs) {
+                fs_error();
+                return;
+            }
+            fs_min_size += blob.size;
+            req_fs(view.TEMPORARY, fs_min_size, abortable(function(fs) {
+                fs.root.getDirectory("saved", create_if_not_found, abortable(function(dir) {
+                    var save = function() {
+                        dir.getFile(name, create_if_not_found, abortable(function(file) {
+                            file.createWriter(abortable(function(writer) {
+                                writer.onwriteend = function(event) {
+                                    target_view.location.href = file.toURL();
+                                    deletion_queue.push(file);
+                                    filesaver.readyState = filesaver.DONE;
+                                    dispatch(filesaver, "writeend", event);
+                                };
+                                writer.onerror = function() {
+                                    var error = writer.error;
+                                    if (error.code !== error.ABORT_ERR) {
+                                        fs_error();
+                                    }
+                                };
+                                "writestart progress write abort".split(" ").forEach(function(event) {
+                                    writer["on" + event] = filesaver["on" + event];
+                                });
+                                writer.write(blob);
+                                filesaver.abort = function() {
+                                    writer.abort();
+                                    filesaver.readyState = filesaver.DONE;
+                                };
+                                filesaver.readyState = filesaver.WRITING;
+                            }), fs_error);
+                        }), fs_error);
+                    };
+                    dir.getFile(name, {create: false}, abortable(function(file) {
+                        // delete file if it already exists
+                        file.remove();
+                        save();
+                    }), abortable(function(ex) {
+                        if (ex.code === ex.NOT_FOUND_ERR) {
+                            save();
+                        } else {
+                            fs_error();
+                        }
+                    }));
+                }), fs_error);
+            }), fs_error);
+        }
+        , FS_proto = FileSaver.prototype
+        , saveAs = function(blob, name) {
+            return new FileSaver(blob, name);
+        }
+    ;
+    FS_proto.abort = function() {
+        var filesaver = this;
+        filesaver.readyState = filesaver.DONE;
+        dispatch(filesaver, "abort");
+    };
+    FS_proto.readyState = FS_proto.INIT = 0;
+    FS_proto.WRITING = 1;
+    FS_proto.DONE = 2;
+
+    FS_proto.error =
+    FS_proto.onwritestart =
+    FS_proto.onprogress =
+    FS_proto.onwrite =
+    FS_proto.onabort =
+    FS_proto.onerror =
+    FS_proto.onwriteend =
+        null;
+
+    view.addEventListener("unload", process_deletion_queue, false);
+    saveAs.unload = function() {
+        process_deletion_queue();
+        view.removeEventListener("unload", process_deletion_queue, false);
+    };
+    return saveAs;
+}(
+       typeof self !== "undefined" && self
+    || typeof window !== "undefined" && window
+    || this.content
+));
+// `self` is undefined in Firefox for Android content script context
+// while `this` is nsIContentFrameMessageManager
+// with an attribute `content` that corresponds to the window
+
+if (typeof module !== "undefined" && module !== null) {
+  module.exports = saveAs;
+} else if ((typeof define !== "undefined" && define !== null) && (define.amd != null)) {
+  define([], function() {
+    return saveAs;
+  });
+}
+/**
+ * A link that pops up a version dialog box
+ */
+
+Ext.define('Rally.technicalservices.InfoLink',{
+    extend: 'Ext.Component',
+    alias: 'widget.tsinfolink',
+    
+    /**
+     * @cfg {String} informationHtml
+     * Additional text to be displayed on the popup dialog (for exmaple,
+     * to add a description of the app's use or functionality)
+     */
+    informationHtml: null,
+    
+    /**
+     * 
+     * cfg {String} title
+     * The title for the dialog box
+     */
+     title: "Build Information",
+    
+    renderTpl: "<div id='{id}-infolinkWrap' class='tsinfolink'>i</div>",
+
+    initComponent: function() {
+        this.callParent(arguments);
+       
+    },
+    
+    onRender: function() {
+        this.callParent(arguments);
+        this.mon(this.el,'click',this.onClick,this);
+    },
+    _generateChecksum: function(string){
+        var chk = 0x12345678,
+            i;
+        string = string.replace(/var CHECKSUM = .*;/,"");
+        string = string.replace(/\s/g,"");  //Remove all whitespace from the string.
+        
+        for (i = 0; i < string.length; i++) {
+            chk += (string.charCodeAt(i) * i);
+        }
+    
+        return chk;
+    },
+    _checkChecksum: function(container) {
+        var me = this;
+        Ext.Ajax.request({
+            url: document.URL,
+            params: {
+                id: 1
+            },
+            success: function (response) {
+                text = response.responseText;
+                if ( CHECKSUM ) {
+                    if ( CHECKSUM !== me._generateChecksum(text) ) {
+                        console.log("Checksums don't match!");
+                        if ( me.dialog ) {
+                            me.dialog.add({xtype:'container',html:'Checksums do not match'});
+                        }
+                    }
+                }
+            }
+        });
+    },
+    onClick: function(e) {
+        var me = this;
+        this._checkChecksum(this);
+        
+        var dialog_items = [];
+        
+        if ( this.informationHtml ) {
+            dialog_items.push({
+                xtype:'container',
+                html: this.informationHtml
+            });
+        }
+                
+        dialog_items.push({
+            xtype:'container',
+            html:"This app was created by the Rally Technical Services Team."
+        });
+        
+        if ( APP_BUILD_DATE ) {
+            dialog_items.push({
+                xtype:'container',
+                html:'Build date/time: ' + APP_BUILD_DATE
+            });
+        }
+        
+        if (this.dialog){this.dialog.destroy();}
+        this.dialog = Ext.create('Rally.ui.dialog.Dialog',{
+            defaults: { padding: 5, margin: 5 },
+            closable: true,
+            draggable: true,
+            title: me.title,
+            items: dialog_items
+        });
+        this.dialog.show();
+    }
+});
+
+/*
+ */
+Ext.define('Rally.technicalservices.Logger',{
+    constructor: function(config){
+        Ext.apply(this,config);
+    },
+    log: function(args){
+        var timestamp = "[ " + Ext.util.Format.date(new Date(), "Y-m-d H:i:s.u") + " ]";
+        //var output_args = arguments;
+        //output_args.unshift( [ "[ " + timestamp + " ]" ] );
+        //output_args = Ext.Array.push(output_args,arguments);
+        
+        var output_args = [];
+        output_args = Ext.Array.push(output_args,[timestamp]);
+        output_args = Ext.Array.push(output_args, Ext.Array.slice(arguments,0));
+
+        window.console && console.log.apply(console,output_args);
+    }
+
+});
+
+Ext.define('Rally.technicalservices.data.Chunker',{
+    MAX_CHUNK_SIZE: 25,
+    logger: new Rally.technicalservices.Logger(),
+    config: {
+        fetch: null,
+        find: null,
+        chunkField: null,
+        chunkOids: null
+    },
+    constructor: function(config){
+        this.initConfig(config);
+    },
+    load: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        var oids = this.chunkOids; 
+        var promises = [];
+        
+        if (oids.length > this.MAX_CHUNK_SIZE){
+            var start_idx = 0;
+            console.log('original array',oids);
+            while(start_idx < oids.length){
+                chunk_values = oids.splice(start_idx, this.MAX_CHUNK_SIZE);
+                promises.push(this._fetchRecords(chunk_values));
+            }
+        } else {
+            promises.push(this._fetchRecords(oids));
+        }
+    
+        if (promises.length == 0){
+            deferred.resolve();
+        }
+        Deft.Promise.all(promises).then({
+            scope: this,
+            success: function(records) {
+                console.log('chunk rcors', records);
+                var data = _.flatten(records);
+                deferred.resolve(data);
+           },
+           failure: function(){
+               deferred.resolve([]);
+           }
+        });
+        return deferred; 
+    },
+    _fetchRecords: function(object_ids){
+        var deferred = Ext.create('Deft.Deferred');
+        
+        var find = this.find;
+        find[this.chunkField] = {$in: object_ids}
+        
+        Ext.create('Rally.data.lookback.SnapshotStore',{
+            fetch: this.fetch,
+            autoLoad: true,
+            find: find, 
+            listeners: {
+                scope: this,
+                load: function(store, records, success){
+                    this.logger.log('chunking success', success);
+                    deferred.resolve(records);
+                }
+            }
+        });
+        return deferred;  
+    }
+});
+Ext.define('Rally.technicalservices.data.FeatureStatusModel',{
+    extend: 'Ext.data.Model',
+    emptyString: '(Empty)',
+    fields: [
+             {name: 'FeatureStatus' },
+             {name: 'FeatureRef', type:'string'},
+             {name: 'State', type:'string'},
+           //  {name: 'InitiativeRef'},
+             {name: 'ObjectID', type: 'int'},
+             {name: 'FeatureTargetSchedule', type: 'string'},
+             {name: 'FeatureFormattedID', type: 'string'},
+             {name: 'FeatureName', type:'string'
+             },{
+                 name: 'BlockedChildren', 
+                 convert: function(v, rec){
+                     var obj_hash = {};
+                     var date_regex = new RegExp(/([0-9]+-[0-9]+-[0-9]+)T[0-9]+:[0-9]+:[0-9]+\.[0-9]+Z/);
+                     Ext.each(v, function(obj){
+                         var obj_hash_code  = JSON.stringify(obj, function(key, value) {
+                             if (key == 'FormattedID'){
+                                 return '';
+                             }
+                             //De-dup dates to the day
+                             var matcher = date_regex.exec(value);
+                             if (matcher && matcher[1]){
+                                 return matcher[1];
+                             }
+                             return value;
+                         });
+                         obj_hash[obj_hash_code] = obj;  
+                     }, this);
+                     var dedupedObjects = _.values(obj_hash);
+                     return dedupedObjects;
+                 }
+             },{
+                 name: 'Comments',type:'string'},
+             {
+                 name: 'FormattedFeature', 
+                 type: 'string', 
+                 convert: function(v, rec){
+                     return Ext.String.format('{0}:{1}',rec.get('FeatureFormattedID'), rec.get('FeatureName')); 
+                 }
+             },
+             {
+                 name: 'BlockerReasons', 
+                 convert: function(v, rec){
+                     return _.map(rec.get('BlockedChildren'), function(child){return child.BlockedReason || rec.emptyString;});
+                 }
+              },
+             {
+                  name: 'BlockerOwner', 
+                  convert: function(v, rec){
+                      return _.map(rec.get('BlockedChildren'), function(child){return child.c_BlockerOwnerFirstLast || rec.emptyString;});
+                  }
+             },
+             {
+                 name: 'BlockerDate',  
+                 convert: function(v, rec){
+                     return _.map(rec.get('BlockedChildren'), function(child){
+                         var date = child.c_BlockerCreationDate;
+                         if (date){
+                             return Rally.util.DateTime.formatWithDefault(Rally.util.DateTime.fromIsoString(date));
+                         }
+                         return rec.emptyString;
+                      });
+                 }
+             },{
+               name: 'BlockerArtifact', 
+               convert: function(v, rec){
+                   var objs = rec.get('BlockedChildren');
+                   return _.map(rec.get('BlockedChildren'), function(child){return child.FormattedID || rec.emptyString});
+               }
+             }]
+});
+Ext.define('Rally.technicalservices.FileUtilities', {
+    singleton: true,
+    logger: new Rally.technicalservices.Logger(),
+    saveHTMLToFile:function(html,file_name,type_object){
+        if (type_object == undefined){
+            type_object = {type:'text/html;charset=utf-8'};
+        }
+        var blob = new Blob([html],type_object);
+        saveAs(blob,file_name);
+},
+
+    saveTextAsFile: function(textToWrite, fileName)
+    {
+        var textFileAsBlob = new Blob([textToWrite], {type:'text/plain'});
+        var fileNameToSaveAs = fileName;
+
+        if (this.detectIE() >= 10){
+            console.log(window.navigator);
+            window.navigator.msSaveBlob(textFileAsBlob, fileNameToSaveAs); 
+        } else {
+        
+            var downloadLink = document.createElement("a");
+            downloadLink.download = fileNameToSaveAs;
+            downloadLink.innerHTML = "Download File";
+            if (window.webkitURL != null)
+            {
+                // Chrome allows the link to be clicked
+                // without actually adding it to the DOM.
+                downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+            }
+            else
+            {
+                // Firefox requires the link to be added to the DOM
+                // before it can be clicked.
+                downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+                downloadLink.onclick = this.destroyClickedElement;
+                downloadLink.style.display = "none";
+                document.body.appendChild(downloadLink);
+            }
+            downloadLink.click();
+        }
+    },
+    destroyClickedElement: function(event)
+    {
+        document.body.removeChild(event.target);
+    },
+    convertDataArrayToCSVText: function(data_array, requestedFieldHash){
+       
+        var text = '';
+        Ext.each(Object.keys(requestedFieldHash), function(key){
+            text += requestedFieldHash[key] + ',';
+        });
+        text = text.replace(/,$/,'\n');
+        
+        Ext.each(data_array, function(d){
+            Ext.each(Object.keys(requestedFieldHash), function(key){
+                if (d[key]){
+                    if (typeof d[key] === 'object'){
+                        if (d[key].FormattedID) {
+                            text += Ext.String.format("\"{0}\",",d[key].FormattedID ); 
+                        } else if (d[key].Name) {
+                            text += Ext.String.format("\"{0}\",",d[key].Name );                    
+                        } else if (!isNaN(Date.parse(d[key]))){
+                            text += Ext.String.format("\"{0}\",",Rally.util.DateTime.formatWithDefaultDateTime(d[key]));
+                        }else {
+                            text += Ext.String.format("\"{0}\",",d[key].toString());
+                        }
+                    } else {
+                        text += Ext.String.format("\"{0}\",",d[key] );                    
+                    }
+                } else {
+                    text += ',';
+                }
+            },this);
+            text = text.replace(/,$/,'\n');
+        },this);
+        return text;
+    },
+    scrubStringForXML: function(string){
+        console.log('scrub',string);
+        if (string) {
+            var scrubbed_string = string.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+            return scrubbed_string;
+        }
+        return '';
+    },
+    detectIE: function(){
+        var ua = window.navigator.userAgent;
+
+        var msie = ua.indexOf('MSIE ');
+        if (msie > 0) {
+            // IE 10 or older => return version number
+            return parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+        }
+
+        var trident = ua.indexOf('Trident/');
+        if (trident > 0) {
+            // IE 11 => return version number
+            var rv = ua.indexOf('rv:');
+            return parseInt(ua.substring(rv + 3, ua.indexOf('.', rv)), 10);
+        }
+
+        var edge = ua.indexOf('Edge/');
+        if (edge > 0) {
+           // IE 12 => return version number
+           return parseInt(ua.substring(edge + 5, ua.indexOf('.', edge)), 10);
+        }
+
+        // other browser
+        return false;
+    }
+    
+    //https://msdn.microsoft.com/en-us/library/ie/hh673542(v=vs.85).aspx
+});
+Ext.define('Rally.technicalservices.dialog.Filter',{
+    extend: Rally.ui.dialog.Dialog,
+    logger: new Rally.technicalservices.Logger(),
+    autoShow: true,
+    componentCls: "rly-popover dark-container",
+    title: 'Filter Features by',
+    validOperators: {
+        TEXT: ['contains','!contains'],
+        DECIMAL: ['=', '!=', '>', '<', '>=', '<='],
+        INTEGER: ['=', '!=', '>', '<', '>=', '<='],
+        BOOLEAN: ['=','!='],
+        COLLECTION: ['contains','!contains','containsany'],
+        OBJECT: ['=','!='],
+        QUANTITY: ['=', '!=', '>', '<', '>=', '<='],
+        STATE: ['=','!='],
+        STRING: ['=','!=','contains','!contains'],
+    },
+    unfilterableAttributeTypes: ["BINARY_DATA","DATE", "WEB_LINK", "RAW","RATING"],
+    validValues: {
+        BOOLEAN: ["true","false"]
+    },
+    /**
+     * model:  typePath that will be used to get filter fields
+     */
+    model: null,
+    
+    initComponent: function() {
+        this.buttons = this._getButtons();
+
+        this._getModel(this.model);
+        this.callParent(arguments);
+        this.addEvents('customFilter');
+    },
+    _getModel: function(model){
+        
+        Rally.data.ModelFactory.getModel({
+            type: model,
+            scope: this,
+            success: this._onModelLoaded
+        });
+    },
+    _onModelLoaded: function(model){
+        var fields = model.getFields();
+        var filterableFields = {};
+        Ext.each(fields, function(field){
+            if (field.attributeDefinition && 
+                    field.attributeDefinition.Filterable && 
+                    !field.attributeDefinition.Hidden){
+
+                  if (_.indexOf(this.unfilterableAttributeTypes, field.attributeDefinition.AttributeType) < 0){
+                      filterableFields[field.attributeDefinition.ElementName] = field;
+                  }
+            }
+        },this);
+        this.filterableFields = filterableFields; 
+
+        this._addHeader();
+        this._addRowsContainer();
+        this._addFooter();
+
+        
+        this._initializeFilters(this.filters);
+
+    },
+    _addHeader: function() {
+        this.headerContainer = this.add({
+            xtype: "container",
+            cls: "custom-filter-header",
+            layout: {type: 'hbox'},
+            defaults: {
+                xtype: "component",
+                cls: "filter-panel-label"
+            },
+            items: [{
+                height: 1,
+                width: 30
+            }, {
+                html: "Field",
+                width: 155
+            }, {
+                html: "Operator",
+                width:  80
+            }, {
+                html: "Value",
+                width:  155
+            }]
+        });
+    },
+    _addRowsContainer: function(){
+        
+        this.rowsContainer = this.add({
+            xtype: "container",
+            itemId: "custom-filter-rows",
+            layout: {type: 'vbox'}
+        });
+    },
+    _addFooter: function(){
+        this.footerContainer = this.add({
+            xtype: "container",
+            itemId: 'custom-filter-footer',
+            items: [{
+                xtype:'rallybutton',
+                itemId: 'clearButton',
+                cls: "secondary rly-small",
+                text: 'Clear All',
+                width: 90,
+                align: 'right',
+                margin: '5 5 5 220',
+                scope: this,
+                handler: this._onClearAll
+            },{
+                xtype:'rallybutton',
+                itemId: 'btn-add',
+                text: 'Add New',
+                width: 90,
+                cls: "primary rly-small",
+                align: 'right',
+                margin: 5,
+                scope: this,
+                handler: function(){this._addRow();}
+            }]
+        });
+    },
+    _getButtons: function() {
+        return [{
+            xtype: "rallybutton",
+            itemId: "cancelButton",
+            cls: "secondary rly-small",
+            text: "Cancel",
+            width: 90,
+            handler: this._onCancelClick,
+            scope: this
+        }, {
+            xtype: "rallybutton",
+            itemId: "applyButton",
+            cls: "primary rly-small",
+            text: "Apply",
+            width: 90,
+            handler: this._onApplyClick,
+            scope: this,
+            disabled: true 
+        }];
+    },    
+    _initializeFilters: function(filters){
+        this.logger.log('_initializeFilters', filters);
+        
+        if (filters && filters.length > 0){
+            Ext.each(filters, function(filter){
+                this._addRow(filter.property, filter.operator, filter.value);
+            },this);
+        } else {
+            this._addRow();
+        }
+    },
+
+    _addRow: function(property, operator, value) {
+        this.logger.log('_addRow', property, operator, value);
+        
+        var items = [];  
+        items.push({
+            xtype: "rallybutton",
+            itemId: 'btn-remove',
+            text: '-',
+            scope: this,
+            margin: 5,
+            handler: function(btn){
+                btn.bubble(this._removeRow, this);
+            }
+        });
+
+        items.push({
+            xtype: "rallycombobox",
+            itemId: 'cb-filter-field',
+            store: this._getFilterFieldStore(),
+            displayField: 'Name',
+            valueField: 'ElementName',
+            queryMode: 'local',
+            listeners: {
+                scope: this,
+                select: function(cb) {
+                    this._updateFilterControls(cb, operator, value);
+                },
+                boxready: function(cb){
+                    if (property){
+                        cb.setValue(property);
+                        this._updateFilterControls(cb, operator, value);
+                    }
+                }
+
+            },
+            allowNoEntry: true,
+            noEntryText: 'Choose Field...',
+            noEntryValue: null,
+            margin: 5,
+        });
+        
+        var row = Ext.create('Ext.Container',{
+            layout: {type: 'hbox'},
+            items: items
+        });
+        
+        this.rowsContainer.add(row);
+        
+        this._validateFilters();
+    },
+    _updateFilterControls: function(cbField, operator, value){
+        var field = cbField.getRecord();
+        var parentContainer = cbField.up(null,1); 
+        this.logger.log('_updateFilterControls',operator, value);
+        if (parentContainer){
+            if (parentContainer.down('#cb-filter-operator')) {
+                parentContainer.down('#cb-filter-operator').destroy(); 
+                parentContainer.down('#cb-filter-value').destroy(); 
+            }
+            
+            var operatorControl = this._getOperatorControl(field, operator, 'cb-filter-operator');
+            parentContainer.add(operatorControl);
+            
+            var value_val = value || null;
+            var valueControl = this._getValueControl(field, value, 'cb-filter-value');
+            parentContainer.add(valueControl);
+        }
+     },
+    _getFilterFieldStore: function(){
+        var data = _.map(this.filterableFields, function(obj, key){return obj.attributeDefinition});
+        data = _.sortBy(data, function(obj){return obj.Name;});
+        var fields = _.keys(data[0]);
+        console.log(this.filterableFields, data,fields);
+        return Ext.create('Ext.data.Store',{
+            fields: fields,
+            data: data
+        });
+    },
+    _getFilterRowsContainer: function(){
+        return this.down('#custom-filter-rows');
+    },
+    _removeRow: function(btn){
+        var ct = btn.up(null,1); 
+        if (ct){
+            ct.destroy();
+        }  
+        this._validateFilters();
+    },
+    _onClearAll: function(){
+        this._getFilterRowsContainer().removeAll(); 
+        this._addRow();
+    },
+    _onCancelClick: function() {
+        this.destroy()
+    },
+    _validateFilters: function(ct){
+        var disabled = false; 
+        var add_disabled = false; 
+        
+        var rows = this._getFilterRowsContainer().items.items;
+        if (rows.length == 0){
+            disabled = true; 
+        }
+        
+        Ext.each(this._getFilterRowsContainer().items.items, function(item){
+            item.down('#btn-remove').setDisabled(rows.length == 1);
+            
+            var property = null;  
+            if (item.down('#cb-filter-field')){
+                property = item.down('#cb-filter-field').getValue();
+            }
+            var operator = null;  
+            if (item.down('#cb-filter-operator')){
+                operator = item.down('#cb-filter-operator').getValue();
+            }
+            
+            if (property == null || operator == null || property.length == 0 || operator.length == 0){
+                disabled = true, add_disabled = true;  
+            }
+            
+            var val = null;  
+            if (item.down('#cb-filter-value')){
+                val = item.down('#cb-filter-value').getValue() 
+                if (item.down('#cb-filter-value').xtype == 'rallynumberfield'){
+                    if (val == null || val.toString.length == 0){
+                        disabled = true, add_disabled = true;
+                    }
+                }
+            }; 
+            if (rows.length == 1 && property == null && operator == null && val == null){
+                disabled = false;   //clear filters 
+            }
+         }, this);
+        this.logger.log('_validateFilters',disabled);
+        this.down('#applyButton').setDisabled(disabled);
+        this.down('#btn-add').setDisabled(add_disabled);
+    },
+    _onApplyClick: function() {
+        var filters = [];  
+       
+        Ext.each(this._getFilterRowsContainer().items.items, function(item){
+            if (this.down('#cb-filter-operator')){
+                var propertyCombo = item.down('#cb-filter-field');
+                property = propertyCombo.getValue();
+                operator = item.down('#cb-filter-operator').getValue();
+                val = item.down('#cb-filter-value').getValue(); 
+                console.log(propertyCombo.getRecord());
+                display_property = propertyCombo.getRecord().data.Name;
+                if (property && operator) {
+                    filters.push({
+                        property: property,
+                        operator: operator,
+                        value: val,
+                        displayProperty: display_property
+                    });
+                }
+            }
+        }, this);
+
+        this.fireEvent("customfilter", filters);
+        this.destroy()
+    },
+
+
+    _getOperatorControl: function(field, operatorValue, itemId){
+        this.logger.log('_getOperatorControl',field, operatorValue);
+ 
+        var data = this.validOperators[field.data.AttributeType];
+        if (Array.isArray(field.data.AllowedQueryOperators)){
+             data = _.map(field.data.AllowedQueryOperators, function(o){ return o.OperatorName});
+         } 
+        operatorValue = operatorValue || data[0];
+        console.log(operatorValue);
+        var op_ctl = {
+            xtype: "combobox",
+            itemId: itemId,
+            store: data,
+            queryMode: 'local',
+            margin: 5,
+            width: 80,
+            allowNoEntry: false,
+            value: operatorValue,
+            listeners: {
+                scope: this,
+                change: this._validateFilters
+            }
+        };
+        return op_ctl; 
+    },
+    _getValueControl: function(field, value, item_id){
+        this.logger.log('_getValueControl',field)
+        
+        var data = this.validValues[field.data.AttributeType] || [];
+        if (Array.isArray(field.data.AllowedValues)){
+            data = _.map(field.data.AllowedValues, function(o){ return o.StringValue});
+        } 
+        
+        if (data.length > 0){
+            return {
+                xtype: 'combobox',
+                store: data, 
+                itemId: item_id,
+                queryMode: 'local',
+                margin: 5,
+                width: 80,
+                allowNoEntry: false,
+                length: 150,
+                value: value || data[0],
+                listeners: {
+                    scope: this,
+                    change: this._validateFilters,
+                }
+
+            }
+        } else {
+            return {
+                xtype: 'rallytextfield',
+                margin: 5,
+                itemId: item_id,
+                value: value || '',
+                length: 150,
+                listeners: {
+                    scope: this,
+                    change: this._validateFilters
+                }
+
+            }
+        }
+    },
+});
+Ext.define('feature-status-report', {
+    extend: 'Rally.app.App',
+    componentCls: 'app',
+    logger: new Rally.technicalservices.Logger(),
+    
+    items: [
+        {xtype:'container',itemId: 'header_box'},
+        {xtype:'container',itemId:'display_box'},
+        {xtype:'tsinfolink'}
+    ],
+    featureTargetScheduleStore: [
+         ['c_FeatureTargetSprint','Feature Target Sprint'],
+         ['c_CodeDeploymentSchedule','Code Deployment Schedule']
+    ],
+    defaultFeatureTargetField: 'c_CodeDeploymentSchedule',
+    featureModel: 'PortfolioItem/Feature',
+    featureFetchFields: ['FormattedID','Name','DisplayColor','Discussion','Parent','State'],
+    childrenFetchFields: ['FormattedID','Name','_ItemHierarchy','Blocked','BlockedReason','c_BlockerCreationDate','c_BlockerOwnerFirstLast'],
+    reportBlockerFields: ['BlockedReason','c_BlockerCreationDate','c_BlockerOwnerFirstLast','FormattedID'],
+    
+    launch: function() {
+        this._initialize();
+    },
+    _initialize: function(){
+        var margin = 10; 
+
+        this.down('#header_box').add({ 
+            xtype: 'container',
+            layout: {type: 'hbox'},
+            items: [{
+                xtype: 'rallyreleasecombobox',
+                itemId: 'cb-release',
+                fieldLabel: 'Release Filter',
+                labelAlign: 'right',
+                width: 250,
+                margin: margin,
+                context: {project: this.getContext().getProjectRef(), projectScopeDown: false}
+            },{
+               xtype: 'rallycombobox',
+               itemId: 'cb-feature-target-schedule',
+               fieldLabel: 'Feature Target Field',
+               labelAlign: 'right',
+               margin: margin,
+               width: 300,
+               labelWidth: 125,
+               store: this.featureTargetScheduleStore
+            },{
+                xtype: 'rallybutton',
+                itemId: 'btn-filter',
+                margin: 10,
+                cls: 'small-icon secondary rly-small',
+                iconCls: 'icon-filter',
+                scope: this,
+                handler: this._filter
+                
+            },{
+                xtype: 'rallybutton',
+                text: 'Run',
+                scope: this,
+                margin: margin,
+                handler: this._run
+            },{ 
+                xtype: 'rallybutton',
+                text: 'Export',
+                itemId: 'btn-export',
+                scope: this,
+                margin: margin,
+                disabled: true,
+                handler: this._export
+            }]
+        });
+    },
+    _filter: function(btn){
+        Ext.create('Rally.technicalservices.dialog.Filter',{
+            model: this.featureModel,
+            filters: this.filters || [],
+            listeners: {
+                scope: this,
+                customfilter: function(filters){
+                    if (this.filters != filters){
+                        this.filters = filters; 
+                        if (filters.length == 0){
+                            btn.removeCls('primary');
+                            btn.addCls('secondary');
+                        } else {
+                            btn.removeCls('secondary');
+                            btn.addCls('primary');
+                        }
+                        this._run();
+                        
+                    }
+                }
+            }
+        });
+    },
+    _getFeatureTargetScheduleField: function(){
+        return this.down('#cb-feature-target-schedule').getValue() || this.defaultFeatureTargetField;
+    },
+    _export: function(){
+        var store = this.down('#grd-report').getStore(); 
+        this.logger.log('_export', store.getData());
+        var xml_text = '', style_xml = '';
+        var counter = 0; 
+        
+        //Write headers
+        var headers = ['CodeDeplymentSchedule','FormattedFeature','BlockerReasons','BlockerDate','BlockerOwner','Comments'];
+        var xml_text = Ext.String.format('<ss:Row><ss:Cell><ss:Data ss:Type="String">Status</ss:Data></ss:Cell>' +
+                '<ss:Cell><ss:Data ss:Type="String">{0}</ss:Data></ss:Cell>' +
+                '<ss:Cell><ss:Data ss:Type="String">{1}</ss:Data></ss:Cell>' +
+                '<ss:Cell><ss:Data ss:Type="String">{2}</ss:Data></ss:Cell>' +
+                '<ss:Cell><ss:Data ss:Type="String">{3}</ss:Data></ss:Cell>' +
+                '<ss:Cell><ss:Data ss:Type="String">{4}</ss:Data></ss:Cell>' +
+                '<ss:Cell><ss:Data ss:Type="String">{5}</ss:Data></ss:Cell>' +
+                '</ss:Row>',headers[0],headers[1],headers[2],headers[3],headers[4],headers[5]);
+        
+        Ext.each(this.exportData, function(r){
+            counter++;
+            style_xml +=  Ext.String.format('<ss:Style ss:ID="s{0}"> <ss:Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1" /><ss:Interior ss:Color="{1}" ss:Pattern="Solid"/></ss:Style>',counter, r.get('FeatureStatus'));
+
+            var blocker_reasons = r.get('BlockerReasons').join('&#13;');
+            var blocker_owner = r.get('BlockerOwner').join('&#13;');
+            var blocker_dates = r.get('BlockerDate').join('&#13;');
+
+            //var blocker_reasons = Rally.technicalservices.FileUtilities.scrubStringForXML(r.get('BlockerReasons')).replace('&lt;br/$gt;','&#13;');
+            //blocker_reasons = blocker_reasons.replace('&lt;br/&gt;','&#13;',"g");
+            
+            //var blocker_owner = Rally.technicalservices.FileUtilities.scrubStringForXML(r.get('BlockerOwner')); //.replace('<br/>','&#10;','g'));
+            //blocker_owner = blocker_owner.replace('&lt;br/&gt;','&#13;',"g");
+            //
+            //var blocker_dates = Rally.technicalservices.FileUtilities.scrubStringForXML(r.get('BlockerDate'));
+            //blocker_dates = blocker_dates.replace('&lt;br/&gt;','&#13;',"g");
+
+            var feature = Rally.technicalservices.FileUtilities.scrubStringForXML(r.get('FormattedFeature'));
+            var comments = Rally.technicalservices.FileUtilities.scrubStringForXML(r.get('Comments'));
+            var cd_schedule = Rally.technicalservices.FileUtilities.scrubStringForXML(r.get('FeatureTargetSchedule'));
+            var state = Rally.technicalservices.FileUtilities.scrubStringForXML(r.get('State'));
+
+            xml_text += Ext.String.format('<ss:Row><ss:Cell ss:StyleID="s{0}"><ss:Data ss:Type="String"></ss:Data></ss:Cell>' +
+                    '<ss:Cell><ss:Data ss:Type="String">{1}</ss:Data></ss:Cell>' +
+                    '<ss:Cell><ss:Data ss:Type="String">{2}</ss:Data></ss:Cell>' +
+                    '<ss:Cell><ss:Data ss:Type="String">{3}</ss:Data></ss:Cell>' +
+                    '<ss:Cell><ss:Data ss:Type="String">{4}</ss:Data></ss:Cell>' +
+                    '<ss:Cell><ss:Data ss:Type="String">{5}</ss:Data></ss:Cell>' +
+                    '<ss:Cell><ss:Data ss:Type="String">{6}</ss:Data></ss:Cell>' +
+                    '<ss:Cell><ss:Data ss:Type="String">{7}</ss:Data></ss:Cell>' +
+                    '</ss:Row>',counter,
+                    cd_schedule,feature,state, blocker_reasons,blocker_dates,
+                    blocker_owner, 
+                    comments);
+        });
+        
+
+
+        var text = Ext.String.format('<?xml version="1.0"?>' +
+        '<ss:Workbook xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+        '<ss:Styles>{0}</ss:Styles>' +
+        '<ss:Worksheet ss:Name="' + this.getContext().getProject().Name + '">' +
+        '<ss:Table>{1}</ss:Table></ss:Worksheet></ss:Workbook>',style_xml, xml_text);
+        
+//        Rally.technicalservices.FileUtilities.saveTextAsFile(html_text, 'features.html');
+ //       html_text = Ext.String.format('<table>{0}</table>', html_text);
+        Rally.technicalservices.FileUtilities.saveHTMLToFile(text,'feature-report.html');
+        
+    },
+    _getReleaseCombo: function(){
+        return this.down('#cb-release');
+    },
+    _run: function(){
+        var release = this._getReleaseCombo().getValue();
+        this.logger.log('_run');
+        
+        this._enableUI(false);
+        this._fetchFeatures(release).then({
+            scope: this,
+            success: function(featureRecords){
+                this._fetchBlockedChildren(featureRecords).then({
+                    scope: this,
+                    success: function(data){
+                        this.exportData = data;  
+                        var store = this._buildDataStore(data);
+                        this._buildGrid(store);
+                        this._enableUI(true);
+                    }
+                });
+            }
+        });
+    },
+    _enableUI: function(enable){
+        this.setLoading(!enable);
+        this.down('#btn-export').setDisabled(!enable)
+    },
+    _buildDataStore: function(data){
+       this.logger.log('_buildDataStore',data);
+       return Ext.create('Rally.data.custom.Store',{
+           data: data
+       });
+    },
+    _buildGrid: function(store){
+        if (this.down('#grd-report')){
+            this.down('#grd-report').destroy();
+        }
+        
+        this.down('#display_box').add({
+            xtype: 'rallygrid',
+            itemId: 'grd-report',
+            store: store,
+            columnCfgs: this._getColumnCfgs()
+        });
+    },
+    _getColumnCfgs: function(){
+        return [{
+            text: 'Status',
+            dataIndex: 'FeatureStatus',
+            renderer: function(v,m,r){
+                m.tdAttr = 'style = "background-color: ' + v + ';"';
+                return '';
+            },
+            width: 25
+        },{
+            text: 'Feature Target Schedule',
+            dataIndex: 'FeatureTargetSchedule'
+        },{
+        //    text: 'Initiative',
+        //    dataIndex: 'InitiativeRef',
+        //    renderer: function(v,m,r){
+        //        if (v){
+        //            var link_text = Ext.String.format('{0}: {1}', v.FormattedID, v.Name);
+        //            if (v){
+        //                return Rally.nav.DetailLink.getLink({record: v, text: link_text});
+        //            }
+        //            return link_text;
+        //        }
+        //        return '';
+        //    },
+        //    flex: 1
+        //},{
+            text: 'Feature',
+            dataIndex: 'FeatureRef',
+            renderer: function(v,m,r){
+                var link_text = Ext.String.format('{0}: {1}', r.get('FeatureFormattedID'), r.get('FeatureName')); 
+                if (v){
+                    return Rally.nav.DetailLink.getLink({record: v, text: link_text});
+                }
+                return link_text;
+            },
+            flex: 1
+        },{
+            text: 'State',
+            dataIndex: 'State'
+        },{
+            text: 'Blocker Reasons',
+            dataIndex: 'BlockerReasons',
+            flex: 1,
+            renderer: this._arrayRenderer
+        },{
+            text: 'Blocker Date',
+            dataIndex: 'BlockerDate',
+                renderer: this._arrayRenderer
+        },{
+            text: 'Blocker Owner',
+            dataIndex: 'BlockerOwner',
+            renderer: this._arrayRenderer,
+           flex: 1
+        },{
+            text: 'Comments',
+            dataIndex: 'Comments',
+            flex: 1
+        }];
+    },  
+    _arrayRenderer: function(v,m,r){
+        if (Array.isArray(v)){
+            return v.join('<br/>');
+        }
+        return v;  
+    },
+    _fetchBlockedChildren: function(featureRecords){
+        var deferred = Ext.create('Deft.Deferred');
+        this.logger.log('_fetchChildren',featureRecords.features, featureRecords.discussions);
+        
+        var fetch = this.childrenFetchFields;
+        var find = {
+                '_TypeHierarchy': {$in: ['HierarchicalRequirement','Defect','Task']},
+                '__At': "current",
+                'Blocked': true,
+        }; 
+        
+        var object_ids = _.map(featureRecords.features, function(f){return f.get('ObjectID');});
+        this.logger.log('_fetchChildren', object_ids.length, object_ids);
+        var chunker = Ext.create('Rally.technicalservices.data.Chunker',{
+            fetch: fetch,
+            find: find,
+            chunkField: '_ItemHierarchy',
+            chunkOids: object_ids    
+        });
+        chunker.load().then({
+            scope: this,
+            success: function(records){
+                this.logger.log('Chunking complete', records);
+                var models = this._createModels(featureRecords, records);
+                deferred.resolve(models);
+            }
+        });
+        return deferred;  
+    },
+    _getDiscussionHash: function(featureRecords){
+        var discussion_hash = {};
+        Ext.each(featureRecords.discussions, function(d){
+            discussion_hash[d.get('Artifact').ObjectID] = d.get('Text');
+        });
+        return discussion_hash;  
+    },
+    _getBlockedChildrenForFeatureOid: function(blockedChildrenRecords, featureOid){
+        var blockerFields = this.reportBlockerFields; 
+        var blocked_children = [];  
+        Ext.each(blockedChildrenRecords, function(r){
+            
+            if (Ext.Array.contains(r.get('_ItemHierarchy'),featureOid)){
+                var obj = r.getData(); 
+                var child = _.pick(obj, blockerFields);
+                blocked_children.push(child);                      
+            }
+        }, this);
+        return blocked_children;
+    },
+    /**
+     * Called by _fetchBlockedChildren;  Creates the feature-status-model objects
+     * 
+     */
+    _createModels: function(featureRecords, blockedChildRecords){
+
+        var discussion_hash = this._getDiscussionHash(featureRecords);
+        this.logger.log('_createModels',discussion_hash);
+        var featureTargetScheduleField = this._getFeatureTargetScheduleField();
+        var models = []; 
+        Ext.each(featureRecords.features, function(f){
+            var feature_oid = f.get('ObjectID');
+            var blockedChildren = this._getBlockedChildrenForFeatureOid(blockedChildRecords, feature_oid);
+
+            var state = '';
+            if (f.get('State')){
+                state = f.get('State').Name;
+            }
+            var model = Ext.create('Rally.technicalservices.data.FeatureStatusModel',{
+                ObjectID: feature_oid,
+                FeatureRef: f.get('_ref'),
+               // InitiativeRef: f.get('Parent'),
+                FeatureStatus: f.get('DisplayColor') || '#C0C0C0',
+                FeatureTargetSchedule: f.get(featureTargetScheduleField),
+                FeatureFormattedID: f.get('FormattedID'),
+                State: state,
+                FeatureName: f.get('Name'),
+                BlockedChildren: blockedChildren,  
+                Comments: discussion_hash[feature_oid] || ''
+            });
+            models.push(model);
+            
+        }, this);
+        return models; 
+    },
+    _fetchFeatures: function(releaseRef){
+        var deferred = Ext.create('Deft.Deferred');
+        var fetch = Ext.Array.merge(this.featureFetchFields, [this._getFeatureTargetScheduleField()]);
+        
+        var filters = this.filters || []; 
+        var tempFilters = _.map(filters, function(f){return f;});
+        tempFilters.push({
+            property: 'Release',
+            value: releaseRef
+        });
+        this.logger.log('_fetchFeatures',fetch);
+        Ext.create('Rally.data.wsapi.Store',{
+            fetch: fetch,
+            model: this.featureModel,
+            limit: 'Infinity',
+            filters: tempFilters,
+            autoLoad: true,
+            context: {project: this.getContext().getProjectRef(), projectScopeDown: this.getContext().getProjectScopeDown()},
+            listeners: {
+                scope: this,
+                load: function(store, records, success){
+                    this.logger.log('_fetchFeatures load',records.length, success);
+                    this._fetchDiscussions(records).then({
+                        scope: this,
+                        success: function(discussions){
+                            deferred.resolve({features: records, discussions: discussions});
+                        }
+                    });
+
+                }
+            }
+        });
+        return deferred;
+    },
+    _fetchDiscussions: function(records){
+        var deferred = Ext.create('Deft.Deferred');
+        var promises = []; 
+        
+        Ext.each(records, function(r){
+            var discussions = r.get('Discussion').Count;
+            if (discussions > 0){
+                promises.push(r.getCollection('Discussion').load({
+                    fetch: ['Text','Artifact','ObjectID'],
+                    filters: [{
+                        property: 'PostNumber',
+                        value: discussions - 1 //Get the latest post
+                    }]
+                }));
+            }
+        });
+        
+        if (promises.length > 0){
+            Deft.Promise.all(promises).then({
+                scope: this,
+                success: function(returnVal){
+                    var discussions = _.flatten(returnVal);
+                    this.logger.log('_fetchDiscussions discussions returned', discussions);
+                    deferred.resolve(discussions);
+                }
+            });
+        } else {
+            deferred.resolve([]);
+        }
+        return deferred;
+    }
+    
+});
+            
+               Rally.launchApp('feature-status-report', {
+                   name: 'Feature Status Report'
+               });
+        });
+    </script>
+    
+    <style type="text/css">
+
+.app {
+}
+.tsinfolink {
+    position:absolute;
+    right:0px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    text-align: center;
+    color: white;
+    background: #C0C0C0;
+    border-style: solid;
+    border-width: 1px;
+    margin-top: 25px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+    </style>
+
+</head>
+<body></body>
+</html>
